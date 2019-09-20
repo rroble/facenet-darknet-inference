@@ -1,0 +1,4 @@
+/facenet-darknet-inference
+vendor/
+weights*
+*.o

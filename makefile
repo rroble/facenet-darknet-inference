@@ -2,21 +2,22 @@ CC = gcc
 CPC = g++
 OPENCV_HEADER_DIR = /usr/local/include
 OPENCV_LIBRARY_DIR = /usr/local/lib
-DLIB_HEADER_DIR = /home/lincolnhard/Documents/dlib
-DLIB_LIBRARY_DIR = /home/lincolnhard/Documents/dlib/build/dlib
-NNPACK_HEADER_DIR = /home/lincolnhard/Documents/NNPACK-darknet/include
-NNPACK_LIBRARY_DIR = /home/lincolnhard/Documents/NNPACK-darknet/lib
+DLIB_HEADER_DIR = ./vendor/dlib
+DLIB_LIBRARY_DIR = ./vendor/dlib/build/dlib
+NNPACK_HEADER_DIR = ./vendor/NNPACK-darknet/include
+NNPACK_LIBRARY_DIR = ./vendor/NNPACK-darknet/lib
 
 
 INCLUDES += -I $(OPENCV_HEADER_DIR)
 INCLUDES += -I $(DLIB_HEADER_DIR)
 INCLUDES += -I $(NNPACK_HEADER_DIR)
+INCLUDES += -I ./vendor/NNPACK-darknet/deps/pthreadpool/include
 
 DEFINES += -D OPENCV -D NNPACK
 
 LDFLAGS += -L $(OPENCV_LIBRARY_DIR) -lopencv_core -lopencv_highgui -lopencv_imgproc -lopencv_objdetect -lopencv_calib3d
 LDFLAGS += -L $(DLIB_LIBRARY_DIR) -ldlib
-LDFLAGS += -L $(NNPACK_LIBRARY_DIR) -lnnpack -lpthreadpool -lpthread
+LDFLAGS += -L $(NNPACK_LIBRARY_DIR) -lnnpack -lpthreadpool -lpthread -lopencv_imgcodecs -lopencv_videoio
 
 APP_NAME += facenet-darknet-inference
 
@@ -94,3 +95,27 @@ utils.o:
 
 clean:
 	rm -f test.o run_darknet.o face_io.o activation_layer.o activations.o avgpool_layer.o batchnorm_layer.o blas.o connected_layer.o convolutional_layer.o gemm.o im2col.o image.o layer.o list.o maxpool_layer.o network.o normalization_layer.o option_list.o parser.o route_layer.o shortcut_layer.o utils.o
+
+DIR := $(shell pwd)
+VENDOR := $(DIR)/vendor
+setup:
+	[ ! -f "$(DIR)/facenet-darknet-inference" ]
+
+	[ ! -d "$(VENDOR)" ] && mkdir "$(VENDOR)" || true
+
+	[ ! -d "$(VENDOR)/dlib" ] && cd $(VENDOR) && git clone https://github.com/davisking/dlib.git || true
+	[ ! -d "$(VENDOR)/dlib/build" ] && cd "$(VENDOR)/dlib" && mkdir build && cd build && cmake .. && cmake --build . || true
+
+	[ ! -d "$(VENDOR)/NNPACK-darknet" ] && cd $(VENDOR) && git clone https://github.com/digitalbrain79/NNPACK-darknet.git || true
+	[ ! -d "$(VENDOR)/NNPACK-darknet/lib" ] && pip install --upgrade git+https://github.com/Maratyszcza/PeachPy || true
+	[ ! -d "$(VENDOR)/NNPACK-darknet/lib" ] && pip install --upgrade git+https://github.com/Maratyszcza/confu || true
+	[ ! -d "$(VENDOR)/NNPACK-darknet/lib" ] && cd "$(VENDOR)/NNPACK-darknet" && confu setup && python ./configure.py && ninja || true
+
+	[ ! -d "$(DIR)/weights" -a ! -f "$(DIR)/weights.tar.gz.aa" ] && \
+	axel "https://github.com/rroble/facenet-darknet-inference/raw/weights/weights.tar.gz.aa" || true
+	[ ! -d "$(DIR)/weights" -a ! -f "$(DIR)/weights.tar.gz.ab" ] && \
+	axel "https://github.com/rroble/facenet-darknet-inference/raw/weights/weights.tar.gz.ab" || true
+	[ ! -d "$(DIR)/weights" -a ! -f "$(DIR)/weights.tar.gz.ac" ] && \
+	axel "https://github.com/rroble/facenet-darknet-inference/raw/weights/weights.tar.gz.ac" || true
+	[ ! -f "$(DIR)/weights.tar.gz" ] && cat weights.tar.gz.* > "$(DIR)/weights.tar.gz" || true
+	[ ! -d "$(DIR)/weights" ] && tar -xf "$(DIR)/weights.tar.gz" || true
